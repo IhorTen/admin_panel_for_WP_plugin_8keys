@@ -14,8 +14,8 @@
     });
 
     let is_cheapest = '/cheapest';
-    var is_test = '';
-    var _8keysApiUrl = `https://phplaravel-269850-845247.cloudwaysapps.com/v1.0`;
+    let is_test = '';
+    let _8keysApiUrl = `https://phplaravel-269850-845247.cloudwaysapps.com/v1.0`;
     let id_list = [];
     // let ready_to_upload = [];
     let added_items = [];
