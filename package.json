@@ -1,0 +1,27 @@
+{
+  "name": "admin_panel_dashbord",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/script.js",
+  "dependencies": {
+    "@babel/polyfill": "^7.4.4"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.4.4",
+    "@babel/core": "^7.4.5",
+    "@babel/preset-env": "^7.4.5",
+    "babel-loader": "^8.0.6",
+    "file-loader": "^4.0.0",
+    "path": "^0.12.7",
+    "webpack": "^4.32.2",
+    "webpack-cli": "^3.3.2",
+    "webpack-dev-server": "^3.5.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "webpack-dev-server --open --mode development",
+    "build": "webpack --mode production -w"
+  },
+  "author": "",
+  "license": "ISC"
+}
