@@ -14,10 +14,11 @@
     });
 
     let is_cheapest = '/cheapest';
-    let is_test = '';
-    let _8keysApiUrl = `https://phplaravel-269850-845247.cloudwaysapps.com/v1.0`;
+    var is_test = '';
+    var _8keysApiUrl = `https://phplaravel-269850-845247.cloudwaysapps.com/v1.0`;
     let id_list = [];
-    // let ready_to_upload = [];
+    let isLoading = false;
+    let ready_to_upload = [];
     let added_items = [];
     let downloaded_products = $('.product_list');
     const chosen_products =  $('.chosen_products');
@@ -26,6 +27,34 @@
     const mobile_body_navigation = $('.mobile_body_nav');
     let spinner_pagination = document.getElementById('spinner_pagination');
     let pageElemAmount = 15;
+
+    check_items();
+
+    function check_items() {
+
+        setTimeout(function () {
+
+            if (!isLoading && ready_to_upload.length > 0) {
+                $('.loading_progress').removeAttr('hidden');
+                isLoading = true;
+
+                $('.progress_number').html(ready_to_upload.length);
+                let data_item = ready_to_upload.shift();
+
+                if (data_item.action == 'add'){
+                    save_item_send(data_item.data, data_item.item);
+                } else if (data_item.action == 'remove'){
+                    start_remove_item(data_item.data, data_item.item);
+                }
+            }
+
+            if (ready_to_upload.length > 0) {
+                $('.progress_number').html(ready_to_upload.length+1);
+            }
+
+            check_items();
+        }, 500);
+    }
 
     tidioActivate();
 
@@ -59,7 +88,6 @@
                 $('.auth_check').html('Wrong API-Key');
                 nonLogged();
             } else {
-                console.log(`${_8keysApiUrl}/user`);
                 fetch(`${_8keysApiUrl}/user`, {
                     method: 'GET',
                     headers: {
@@ -68,13 +96,10 @@
                 })
                     .then(response => response.json())
                     .then(user_data => {
-                        // console.log('Checking...');
                         if (!user_data.id) {
-                            // console.log('CHECK FAILED');
                             nonLogged();
                             $('.auth_check').html('Wrong API-Key')
                         } else {
-                            // console.log('CHECK SUCCESS');
                             Logged(user_data.first_name, user_data.last_name, user_data.balance, user_data.currency, $('.user_login').val());
                         }
                     })
@@ -84,7 +109,6 @@
 
     function loginUser() {
         $('.update_key_button').on('click', function () {
-            console.log(`${_8keysApiUrl}/user`);
             fetch(`${_8keysApiUrl}/user`, {
                 method: 'GET',
                 headers: {
@@ -93,14 +117,10 @@
             })
                 .then(response => response.json())
                 .then(user_data => {
-                    console.log(user_data);
                     if (!user_data){
-                        // console.log('no data');
                         $('.auth_check').html('Error, please reload page or check connection')
                     } else {
                         if (user_data.error){
-                            // console.log("ERROR: " + user_data.error);
-                            // nonLogged();
                             $('.auth_check').html(user_data.error)
                         } else {
                             Object.keys(user_data).forEach( key => {
@@ -117,13 +137,9 @@
                                 data: user_data,
                                 method: "POST",
                                 success: function (data_info) {
-                                    console.log(data_info);
                                     if (data_info.success){
-                                        // console.log('Auth success:', data_info.success);
                                         Logged(user_data.kys_first_name, user_data.kys_last_name, user_data.kys_balance, user_data.kys_currency);
-                                        // $('.user_login').val(user_data.kys_auth_key);
                                     } else {
-                                        // console.log('Auth faild ', data_info.error);
                                         $('.auth_check').html('Wrong API-Key');
                                         nonLogged();
                                     }
@@ -226,8 +242,8 @@
         let detect_request_all = false;
         let curr_page_all = 2;
 
-        console.log(`${_8keysApiUrl}${is_cheapest}/items/all`);
-        fetch(`${_8keysApiUrl}${is_cheapest}/items/all`,{
+        $('.product_list').append(`<div class="check_items"><div class="lds-ripple spinner_loading_items"><div></div><div></div></div></div>`);
+        fetch(`${_8keysApiUrl}${is_cheapest}/items/all?amount=${pageElemAmount}`,{
             method: 'GET',
             headers: {
                 'Keys-Api-Auth': $('.user_login').val()
@@ -235,28 +251,23 @@
         })
             .then(response => response.json())
             .then(data => {
-                // console.log(data);
                 data.forEach(elem => {
                     showItems(elem);
                 });
-
                 findDuplicateItems(data);
-                addItemHandler(data);
+                addItemHandler(data, curr_page_all-1, pageElemAmount);
                 spinner.setAttribute('hidden', '');
                 imported_btn_items.removeAttr('hidden');
                 $('.ch_pr_text').removeAttr('hidden');
-                // mobile_body_navigation.removeAttr('hidden');
                 mobile_body_navigation.removeClass('d-none').addClass('d-md-flex d-lg-none');
 
             });
-        // .then();
 
         window.onscroll = function() {
             if ((window.innerHeight + window.pageYOffset) >= document.getElementById('wpwrap').offsetHeight && !detect_request_all) {
                 spinner_pagination.removeAttribute('hidden');
-                console.log(`${_8keysApiUrl}${is_cheapest}/items/all`);
                 $.ajax({
-                    url: `${_8keysApiUrl}${is_cheapest}/items/all`,
+                    url: `${_8keysApiUrl}${is_cheapest}/items/all?amount=${pageElemAmount}`,
                     type: "GET",
                     headers: {
                         'Keys-Api-Auth': $('.user_login').val()
@@ -276,12 +287,9 @@
                             spinner_pagination.setAttribute('hidden', '');
                             data.forEach(elem => {showItems(elem)});
                             findDuplicateItems(data);
-                            // let addItem = addItemHandler;
-                            addItemHandler(data);
-                            // addItem(data);
+                            addItemHandler(data, curr_page_all, pageElemAmount);
                             detect_request_all = false;
                             curr_page_all += 1;
-
                         }
                     },
                     error: function (error) {
@@ -291,44 +299,6 @@
                 });
             }
         }
-
-        // window.onscroll = function() {
-        //     if ((window.innerHeight + window.pageYOffset) >= document.getElementById('wpwrap').offsetHeight && !detect_request_all) {
-        //         spinner_pagination.removeAttribute('hidden');
-        //         $.ajax({
-        //             url: `https://phplaravel-269850-845247.cloudwaysapps.com/v1.0/cheapest/items/all`,
-        //             type: "GET",
-        //             headers: {
-        //                 'Keys-Api-Auth': $('.user_login').val()
-        //             },
-        //             data: {
-        //                 page: curr_page_all,
-        //             },
-        //             beforeSend: function() {
-        //                 detect_request_all = true
-        //             },
-        //             success: function (data) {
-        //                 if (data.length === 0){
-        //                     noMoreElementsFound ();
-        //                     detect_request_all = true;
-        //                     spinner_pagination.setAttribute('hidden', '');
-        //                 } else {
-        //                     spinner_pagination.setAttribute('hidden', '');
-        //                     data.forEach(elem => {showItems(elem)});
-        //                     findDuplicateItems(data);
-        //                     addItemHandler(data);
-        //                     detect_request_all = false;
-        //                     curr_page_all += 1
-        //                 }
-        //             },
-        //             error: function (error) {
-        //                 console.error(error);
-        //                 spinner_pagination.setAttribute('hidden', '');
-        //             }
-        //         });
-        //     }
-        // };
-
     }
 
     function startSearch() {
@@ -345,6 +315,7 @@
     }
 
     function searchItems() {
+
         let keywords = $('.search_input').val();
         let detect_request = false;
         let curr_page = 2;
@@ -361,9 +332,6 @@
         } else {
             is_test="";
         }
-
-        // $('#wpbody').hasClass('non_logged') ? is_test="_test": is_test="";
-
         if (keywords.length === 0) {
             $('.search_input').attr('placeholder', 'Type a correct value');
         } else {
@@ -373,8 +341,7 @@
                 if (keywords.length > 1){
                     spinner.removeAttribute('hidden');
                     keywords = keywords.substring(1);
-                    console.log(`${_8keysApiUrl}${is_test}${is_cheapest}/item/${keywords}`);
-                    fetch(`${_8keysApiUrl}${is_test}${is_cheapest}/item/${keywords}`, {
+                    fetch(`${_8keysApiUrl}${is_test}/item/${keywords}`, {
                         method: 'GET',
                         headers: {
                             'Keys-Api-Auth': $('.user_login').val()
@@ -383,10 +350,9 @@
                         .then(response => response.json())
                         .then(data => {
                             $('.product_list').empty();
-                            // console.log('server data', data);
                             showItems(data);
                             findDuplicateItems(data);
-                            addItemHandler(data);
+                            addItemHandler([data], 0, 1);
                             spinner.setAttribute('hidden', '');
                             imported_btn_items.removeAttr('hidden');
                             $('.ch_pr_text').removeAttr('hidden');
@@ -401,7 +367,6 @@
                 }
             } else {
                 spinner.removeAttribute('hidden');
-                console.log(`${_8keysApiUrl}${is_test}${is_cheapest}/items/find/${keywords}`);
                 fetch(`${_8keysApiUrl}${is_test}${is_cheapest}/items/find/${keywords}?amount=${pageElemAmount}`, {
                     method: 'GET',
                     headers: {
@@ -410,14 +375,12 @@
                 })
                     .then(response => response.json())
                     .then(data => {
-                        console.log(data);
-                        // console.log(data);
                         (data.length === 0) ? noData () :
                             data.forEach(elem => {
                                 showItems(elem);
                             });
                         findDuplicateItems(data);
-                        addItemHandler(data);
+                        addItemHandler(data, curr_page-1, pageElemAmount);
                         spinner.setAttribute('hidden', '');
                         imported_btn_items.removeAttr('hidden');
                         $('.ch_pr_text').removeAttr('hidden');
@@ -426,9 +389,8 @@
                 window.onscroll = function() {
                     if ((window.innerHeight + window.pageYOffset) >= document.getElementById('wpwrap').offsetHeight && !detect_request) {
                         spinner_pagination.removeAttribute('hidden');
-                        console.log(`${_8keysApiUrl}${is_test}${is_cheapest}/items/find/${keywords}`);
                         $.ajax({
-                            url: `${_8keysApiUrl}${is_test}${is_cheapest}/items/find/${keywords}`,
+                            url: `${_8keysApiUrl}${is_test}${is_cheapest}/items/find/${keywords}?amount=${pageElemAmount}`,
                             type: "GET",
                             headers: {
                                 'Keys-Api-Auth': $('.user_login').val()
@@ -441,7 +403,6 @@
                                 detect_request = true
                             },
                             success: function (data) {
-                                console.log(data);
                                 if (data.length === 0){
                                     noMoreElementsFound ();
                                     detect_request = true;
@@ -451,7 +412,7 @@
                                     spinner_pagination.setAttribute('hidden', '');
                                     data.forEach(elem => {showItems(elem)});
                                     findDuplicateItems(data);
-                                    addItemHandler(data);
+                                    addItemHandler(data, curr_page, pageElemAmount);
                                     detect_request = false;
                                     curr_page += 1
                                 }
@@ -480,10 +441,6 @@
         let developers = elem.developers.join(', ');
         let platform = elem.platform;
         let region = elem.region;
-
-        // let languages = (elem.languages === undefined) ? languages = elem.languages : languages = elem.languages.join(', ');
-
-        // (elem.languages === undefined || elem.languages === null) ? languages = elem.languages : languages = elem.languages.join(', ');
 
         (elem.cover_img === "") ? image = keys_path + "images/not_available.png" : image = elem.cover_img;
 
@@ -599,7 +556,7 @@
             success: function (response) {
                 if (response.success) {
                     response.success.forEach((data) => {
-                        $('.product_list [data-id="' + data.api_id + '"]').addClass('active_product_item').find('.btn_add').removeClass('btn_add').addClass('btn_show_item').html('<a href="' + site_path + '/wp-admin/post.php?post=' + data.id + '&action=edit" class="btn_view_item" target="_blank">view<a/>');
+                        $('.product_list [data-id="' + data.api_id + '"]').addClass('active_product_item').find('.btn_add').replaceWith('<a href="' + site_path + '/wp-admin/post.php?post=' + data.id + '&action=edit" class="btn btn-sm px-2 px-sm-3 btn_show_item" target="_blank">view<a/>');
                     });
 
                     $('.product_list .check_items').hide();
@@ -618,96 +575,78 @@
         });
     }
 
-    function addItemHandler(data) {
-        $('.product_item').on('click', '.btn_add', function () {
-            // $('.btn_add').on('click', function () {
+    function addItemHandler(data, page, amount) {
 
-            let spinner_add = $(this).parents('.product_item').find('.spinner_loading_items');
-            let product_elem = $(this).parents('.product_item');
+        let from = (page-1)*amount;
+        let is_loading = true;
 
-            product_elem.addClass('loading_product_item');
+        for (let i=from; i<from+amount; i++) {
+            $('.product_item').eq(i).on('click', '.btn_add', function () {
 
-            let new_item = product_elem.clone().removeClass('product_item loading_product_item').addClass('chosen_item');
-            // new_item.find('.add_item').addClass('pl-1');
-            $(this).removeClass('btn_add').addClass('btn_add_hide');
-            new_item.find('.btn_add').removeClass('btn_add px-2 px-sm-3 btn_add_hide').addClass('btn_remove px-1 px-sm-2').html('remove');
-            spinner_add.removeAttr('hidden');
+                itm_wrapper = $(this).parents('.product_item');
 
-            const sendItems = (id) =>{
-                $(this).removeClass('btn_add_hide').addClass('btn_show_item').html(`<a href="${site_path}/wp-admin/post.php?post=${id}&action=edit" class="btn_view_item" target="_blank">view<a/>`);
-                product_elem.removeClass('loading_product_item').addClass('active_product_item');
-                spinner_add.attr('hidden', 'hidden');
-                $('.ch_pr_text').attr('hidden', 'hidden');
-                chosen_products.prepend(new_item);
-                id_list.push(new_item[0].attributes[1].value);
-                console.log(product_elem);
+                let current_item = {
+                    spinner_add: $(this).parents('.product_item').find('.spinner_loading_items'),
+                    original: itm_wrapper,
+                    new_item: itm_wrapper.clone().removeClass('product_item loading_product_item').addClass('chosen_item'),
+                };
 
-            };
+                current_item.original.addClass('loading_product_item');
+                current_item.original.find('.btn_add').removeClass('btn_add').addClass('btn_add_hide');
+                current_item.new_item.find('.btn_add').removeClass('btn_add px-2 px-sm-3 btn_add_hide').addClass('btn_remove px-1 px-sm-2').html('remove');
+                current_item.spinner_add.removeAttr('hidden');
 
-            if (!data.length){
-                added_items.push(data);
-                data['action'] = "kys_save_item";
-                save_item_send();
 
-                function save_item_send() {
-                    $.ajax({
-                        url: ajaxurl,
-                        type: "GET",
-                        data: data,
-                        success: function (response) {
-                            if (response.success) {
-                                sendItems(response.success.id);
-                                spinner_add.attr('hidden', 'hidden');
-
-                            }else if (response.error == 'attrs_created') {
-                                save_item_send();
-                            }else {
-                                console.error(response.error);
-                                spinner_add.attr('hidden', 'hidden');
-                                product_elem.removeClass('loading_product_item product_item').addClass('error_product_item');
-                                product_elem.append(`<div class="load_error"> Error loading, please reload page </div>`)
-                            }
-                        },
-                        error: function (error) {
-                            console.error(error);
-                        }
-                    })
+                if (data.length){
+                    ready_to_upload.push({data: data[i-from], item: current_item, action: 'add'});
                 }
+            })
+        }
+    }
 
-            } else {
-                data.forEach(elem => {
-                    if (elem.id == new_item[0].attributes[1].value) {
-                        added_items.push(elem);
-                        elem.action = "kys_save_item";
+    const sendItems = (id, item) =>{
+        item.original.find('.btn_add_hide').replaceWith(`<a href="${site_path}/wp-admin/post.php?post=${id}&action=edit" class="btn btn-sm px-2 px-sm-3 btn_show_item" target="_blank">view<a/>`);
+        item.original.removeClass('loading_product_item').addClass('active_product_item');
+        item.original.find('.spinner_loading_items').attr('hidden', 'hidden');
+        $('.ch_pr_text').attr('hidden', 'hidden');
+        chosen_products.prepend(item.new_item);
+        id_list.push(item.new_item[0].attributes[1].value);
 
-                        save_item_send();
+    };
 
-                        function save_item_send() {
-                            $.ajax({
-                                url: ajaxurl,
-                                type: "GET",
-                                data: elem,
-                                success: function (response, smt, jid) {
-                                    if (response.success) {
-                                        sendItems(response.success.id);
-                                        spinner_add.attr('hidden', 'hidden');
-                                    } else if (response.error == 'attrs_created') {
-                                        save_item_send();
-                                    } else {
-                                        console.error(response.error);
-                                        spinner_add.attr('hidden', 'hidden');
-                                        product_elem.removeClass('loading_product_item product_item').addClass('error_product_item');
-                                        product_elem.append(`<div class="load_error"> Error loading, please reload page </div>`)
-                                    }
-                                },
-                                error: function (error) {
-                                    console.error(error)
-                                }
-                            })
-                        }
+    function save_item_send(data, item) {
+        data.action = "kys_save_item";
 
-                    }
-                });
+        $.ajax({
+            url: ajaxurl,
+            type: "GET",
+            data: data,
+            success: function (response, smt, jid) {
+                if (response.success) {
+                    added_items.push(data);
+                    sendItems(response.success.id, item);
+                    item.spinner_add.attr('hidden', 'hidden');
+                } else if (response.error == 'attrs_created') {
+                    save_item_send(data);
+                } else {
+                    console.error(response.error);
+                    item.spinner_add.attr('hidden', 'hidden');
+                    item.original.removeClass('loading_product_item product_item').addClass('error_product_item');
+
+                    if (response.error)
+                        item.original.append(`<div class="load_error">${response.error}</div>`);
+                    else
+                        item.original.append(`<div class="load_error">Error loading, please reload page</div>`);
+                }
+            },
+            complete: function () {
+                isLoading = false;
+                if (ready_to_upload.length === 0){
+                    $('.loading_progress').attr('hidden', 'hidden');
+                }
+            },
+            error: function (error) {
+                console.error(error)
             }
         })
     }
@@ -718,44 +657,52 @@
             const spinner_remove = $(this).parents('.chosen_item').find('.spinner_loading_items');
             const chosen_elem = $(this).parents('.chosen_item');
 
+            let remove_item = {
+                spinner_remove : $(this).parents('.chosen_item').find('.spinner_loading_items'),
+                origin: chosen_elem
+            };
+
             $(this).removeClass('btn_remove').addClass('btn_add_hide');
             spinner_remove.removeAttr('hidden');
 
-            added_items.forEach((elem, index) => {
-                if (elem.id == chosen_elem[0].attributes[1].value){
-                    added_items.splice(index, 1);
-                    $.ajax({
-                        url: ajaxurl,
-                        type: "GET",
-                        data: {
-                            action:"kys_remove_item",
-                            api_id: elem.id
-                        },
-                        success: function (response) {
-                            if (response.success){
+            ready_to_upload.push({data: {api_id: remove_item.origin[0].attributes[1].value}, item: remove_item, action: 'remove'});
+        })
+    }
 
-                                id_list.forEach((delete_id, index, object) => {
-                                    if (chosen_elem.attr('data-id') === delete_id){
-                                        object.splice(index, 1);
-                                    }
-                                });
-                                spinner_remove.attr('hidden', 'hidden');
-                                chosen_elem.remove();
-                                downloaded_products.find(`[data-id = "${chosen_elem.attr('data-id')}"]`).removeClass('active_product_item')
-                                    .find('.btn_show_item').removeClass('btn_show_item').addClass('btn_add').html('add');
-                            } else {
-                                console.warn('yopta');
-                                spinner_remove.attr('hidden', 'hidden');
-                                chosen_elem.append(`<div class="load_error"> Error loading, please reload page </div>`);
-                                chosen_elem.removeClass('chosen_item').addClass('error_product_item ml-0');
-                            }
-                        },
-                        error: function (error) {
-                            console.error(error)
-                        }
-                    })
+    function start_remove_item(data, item) {
+        data.action = "kys_remove_item";
+
+        $.ajax({
+            url: ajaxurl,
+            type: "GET",
+            data: data,
+            success: function (response) {
+                if (response.success){
+                    item.spinner_remove.attr('hidden', 'hidden');
+                    item.origin.remove();
+                    downloaded_products.find(`[data-id = "${item.origin.attr('data-id')}"]`).removeClass('active_product_item')
+                        .find('.btn_show_item').replaceWith(`<button class="btn_add btn btn-sm px-2 px-sm-3"> add </button>`);
+                } else {
+                    console.warn('Remove elem error');
+                    item.spinner_remove.attr('hidden', 'hidden');
+
+                    if (response.error)
+                        item.origin.append(`<div class="load_error">${response.error}</div>`);
+                    else
+                        item.origin.append(`<div class="load_error">Error loading, please reload page</div>`);
+
+                    item.origin.removeClass('chosen_item').addClass('error_product_item ml-0');
                 }
-            });
+            },
+            complete: function () {
+                isLoading = false;
+                if (ready_to_upload.length === 0){
+                    $('.loading_progress').attr('hidden', 'hidden');
+                }
+            },
+            error: function (error) {
+                console.error(error)
+            }
         })
     }
 
